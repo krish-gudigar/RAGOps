@@ -1,3 +1,9 @@
+import sys
+from pathlib import Path
+
+# Add backend directory to path so 'app' can be imported
+sys.path.insert(0, str(Path(__file__).parent / "backend"))
+
 from app.analyzer.task_analyzer import TaskAnalyzer
 
 a = TaskAnalyzer()
