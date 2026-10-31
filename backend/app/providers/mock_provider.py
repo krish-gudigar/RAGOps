@@ -37,7 +37,8 @@ LATENCY_PER_OUTPUT_TOKEN_MS = 2
 
 class MockModelProvider:
     name = "mock"
-
+    uses_request_hints = True
+    
     def __init__(self, settings: Settings | None = None, delay_scale: float = 0.0):
         """delay_scale: fraction of the simulated latency to really sleep.
         0.0 (default) = no waiting, which keeps tests fast.

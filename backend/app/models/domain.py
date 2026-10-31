@@ -52,6 +52,8 @@ class ExecutionAttempt(BaseModel):
 
 class TaskExecutionResult(BaseModel):
     task: str
+    strategy: str = "dynamic"
+    decision: RoutingDecision | None = None
     analysis: TaskAnalysis
     attempts: list[ExecutionAttempt]
     final_response: str
