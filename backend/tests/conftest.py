@@ -1,11 +1,16 @@
 """Shared test setup.
 
-Your real .env (Ollama model names, PROVIDER_MODE) must not change test results,
-so every test starts with those variables removed. Tests that need them set them
-themselves with monkeypatch.
+Tests must give the same results whatever is in your personal .env file
+(Ollama model names, PROVIDER_MODE), so .env loading is switched off while
+tests run. Tests that need those variables set them with monkeypatch.
 """
 
-import pytest
+import os
+
+# Must happen BEFORE any test module imports app.config (which calls load_dotenv).
+os.environ["PYTHON_DOTENV_DISABLED"] = "1"
+
+import pytest  # noqa: E402
 
 ENVIRONMENT_VARIABLES = ("PROVIDER_MODE", "SMALL_MODEL", "MEDIUM_MODEL", "STRONG_MODEL")
 
