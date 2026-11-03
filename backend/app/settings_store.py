@@ -1,0 +1,95 @@
+"""Change settings while the app runs, and remember them in a small JSON file.
+
+Settings objects are updated IN PLACE, so everything that already holds a
+reference (the analyzer, routers, providers) sees the new values immediately.
+Model NAMES are not editable here; they come from .env.
+"""
+
+import copy
+import dataclasses
+import json
+import logging
+from pathlib import Path
+
+from app.config import Settings, Thresholds
+from app.models.api_models import (
+    ModelSettings, SettingsSnapshot, SettingsUpdate, ThresholdValues,
+)
+
+log = logging.getLogger("routewise.settings")
+
+
+class SettingsStore:
+    def __init__(self, settings: Settings, path: str | Path | None = "data/settings.json"):
+        self.settings = settings
+        self.path = Path(path) if path else None
+        self._defaults = copy.deepcopy(settings)
+        self._load()
+
+    # ---------- read ----------
+    def snapshot(self) -> SettingsSnapshot:
+        s = self.settings
+        return SettingsSnapshot(
+            thresholds=ThresholdValues(**dataclasses.asdict(s.thresholds)),
+            raise_small_for_high_reliability=s.raise_small_for_high_reliability,
+            assumed_output_tokens=s.assumed_output_tokens,
+            models={tier: ModelSettings(**dataclasses.asdict(m)) for tier, m in s.models.items()},
+        )
+
+    # ---------- change ----------
+    def apply(self, update: SettingsUpdate) -> SettingsSnapshot:
+        """Raises ValueError if the combined values make no sense. Nothing changes in that case."""
+        self._apply(update)
+        self._save()
+        return self.snapshot()
+
+    def reset(self) -> SettingsSnapshot:
+        d, s = self._defaults, self.settings
+        for f in dataclasses.fields(Thresholds):
+            setattr(s.thresholds, f.name, getattr(d.thresholds, f.name))
+        s.raise_small_for_high_reliability = d.raise_small_for_high_reliability
+        s.assumed_output_tokens = d.assumed_output_tokens
+        for tier, model in s.models.items():
+            for field in ("price_in_per_1m", "price_out_per_1m", "expected_latency_ms"):
+                setattr(model, field, getattr(d.models[tier], field))
+        if self.path and self.path.exists():
+            self.path.unlink()
+        return self.snapshot()
+
+    # ---------- internals ----------
+    def _apply(self, update: SettingsUpdate) -> None:
+        s = self.settings
+        thresholds = dataclasses.asdict(s.thresholds)
+        if update.thresholds:
+            thresholds.update(update.thresholds.model_dump(exclude_none=True))
+        if thresholds["low_max"] >= thresholds["medium_max"]:
+            raise ValueError("low_max must be smaller than medium_max.")
+        if thresholds["medium_context_tokens"] >= thresholds["long_context_tokens"]:
+            raise ValueError("medium_context_tokens must be smaller than long_context_tokens.")
+
+        for name, value in thresholds.items():
+            setattr(s.thresholds, name, value)
+        if update.raise_small_for_high_reliability is not None:
+            s.raise_small_for_high_reliability = update.raise_small_for_high_reliability
+        if update.assumed_output_tokens is not None:
+            s.assumed_output_tokens = update.assumed_output_tokens
+        for tier, model_update in (update.models or {}).items():
+            for field, value in model_update.model_dump(exclude_none=True).items():
+                setattr(s.models[tier], field, value)
+
+    def _save(self) -> None:
+        if not self.path:
+            return
+        snap = self.snapshot().model_dump()
+        for model in snap["models"].values():
+            model.pop("name")          # names come from .env, not from this file
+        self.path.parent.mkdir(parents=True, exist_ok=True)
+        self.path.write_text(json.dumps(snap, indent=2), encoding="utf-8")
+
+    def _load(self) -> None:
+        if not self.path or not self.path.exists():
+            return
+        try:
+            self._apply(SettingsUpdate.model_validate_json(self.path.read_text(encoding="utf-8")))
+        except (ValueError, OSError) as error:
+            log.warning("Ignoring unreadable settings file %s: %s", self.path, error)
