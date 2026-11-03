@@ -1,0 +1,10 @@
+task_id,level,strategy,final_tier,final_model,success,validated,attempts,escalated,latency_ms,cost,score,difficulty,error,task,answer
+E01,easy,always_small,small,qwen2.5:0.5b,1,1,1,0,5009,1.19e-05,0,low,,Translate 'Where is the library?' to French.,"""Where is the library?"" in French is ""Où est la bibliothèque?"""
+E01,easy,always_strong,strong,qwen2.5:3b,1,1,1,0,9873,0.000267,0,low,,Translate 'Where is the library?' to French.,'Où est la bibliothèque?'
+E01,easy,dynamic,small,qwen2.5:0.5b,1,1,1,0,1161,1.3100000000000002e-05,0,low,,Translate 'Where is the library?' to French.,"The translation of ""Where is the library?"" to French is ""Où est la bibliothèque?"""
+E02,easy,always_small,small,qwen2.5:0.5b,1,1,1,0,624,1.05e-05,0,low,,Translate 'Good morning' to Spanish.,"""Good morning"" translates to ""¡Buenos días!"" in Spanish."
+E02,easy,always_strong,strong,qwen2.5:3b,1,1,1,0,2217,0.000336,0,low,,Translate 'Good morning' to Spanish.,"Good morning can be translated to Spanish as ""Buenos días""."
+E02,easy,dynamic,small,qwen2.5:0.5b,1,1,1,0,551,1.05e-05,0,low,,Translate 'Good morning' to Spanish.,"""Good morning"" translates to ""¡Buenos días!"" in Spanish."
+E03,easy,always_small,small,qwen2.5:0.5b,1,1,1,0,315,6.800000000000001e-06,1,low,,What is the capital of Japan?,The capital of Japan is Tokyo.
+E03,easy,always_strong,strong,qwen2.5:3b,1,1,1,0,1267,0.000228,1,low,,What is the capital of Japan?,The capital of Japan is Tokyo.
+E03,easy,dynamic,small,qwen2.5:0.5b,1,1,1,0,298,6.800000000000001e-06,1,low,,What is the capital of Japan?,The capital of Japan is Tokyo.

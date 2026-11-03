@@ -16,6 +16,29 @@ strategy = st.sidebar.selectbox("Strategy", ["dynamic", "always_small", "always_
 validate = st.sidebar.checkbox("Validate answers", value=True)
 escalate = st.sidebar.checkbox("Escalate on failure", value=True)
 max_esc = st.sidebar.slider("Max escalations", 0, 2, 2)
+
+
+@st.cache_data(ttl=30)
+def fetch_config(api_url: str):
+    try:
+        r = requests.get(api_url + "/api/config", timeout=5)
+        r.raise_for_status()
+        return r.json()
+    except Exception:
+        return None
+
+
+config = fetch_config(api)
+models = config["models"] if config else {}
+
+st.sidebar.subheader("Available models")
+if models:
+    st.sidebar.caption(f"Provider mode: {config['provider_mode']}")
+    for tier in ("small", "medium", "strong"):
+        st.sidebar.write(f"**{tier}**: `{models.get(tier, '?')}`")
+else:
+    st.sidebar.caption("Could not load models. Is the API running?")
+
 st.sidebar.caption(
     "Experimental educational prototype. Validation does not prove factual "
     "correctness, and costs are estimates from configured prices."
@@ -44,6 +67,13 @@ def call(method: str, path: str, payload: dict | None = None):
 def show_analysis(analysis: dict, decision: dict):
     st.subheader("Why this model?")
     st.info(decision["reason"])
+    chosen_tier = decision["selected_tier"]
+    chosen_model = models.get(chosen_tier, "unknown model")
+    st.success(f"Selected: **{chosen_tier}** tier, using model `{chosen_model}`")
+    if models:
+        st.caption("Available: " + " | ".join(
+            f"{t}: {models.get(t, '?')}" for t in ("small", "medium", "strong")))
+
     cols = st.columns(5)
     for col, (label, key) in zip(cols, [
         ("Complexity", "complexity_score"), ("Reasoning", "reasoning_score"),
@@ -80,7 +110,8 @@ def show_execution(body: dict):
     else:
         status = "passed validation" if validation.get("valid") else "FAILED validation"
     st.caption(
-        f"{result['final_tier']} tier | {result['total_latency_ms'] / 1000:.1f} s | "
+        f"{result['final_tier']} tier ({last.get('model', '?')}) | "
+        f"{result['total_latency_ms'] / 1000:.1f} s | "
         f"estimated cost ${result['total_estimated_cost']:.6f} | {status} | "
         f"attempts: {len(result['attempts'])}"
     )

@@ -1,0 +1,22 @@
+OVERALL (per strategy)
+strategy       runs  success  escalated  avg time s  avg cost $  total cost $
+always_small     30      90%         0%         9.9    0.000088      0.002625
+always_strong    30      87%         0%        47.7    0.004271      0.128130
+dynamic          30      87%        17%        35.9    0.001714      0.051420
+
+SUCCESS RATE BY TASK LEVEL
+strategy          easy  medium    hard
+always_small       90%     90%     90%
+always_strong     100%     90%     70%
+dynamic           100%     90%     70%
+
+DYNAMIC: final tier used  {'small': 12, 'medium': 12, 'strong': 6}
+
+DYNAMIC vs ALWAYS_STRONG (this task set only)
+  estimated cost: -60%
+  average time:   -25%
+  success rate:   +0 percentage points
+
+Runs with provider errors (excluded above): 0
+Success = final answer passed the validators. It is NOT proof of correctness.
+Costs are estimates from the configured prices. One run per task, one machine.

@@ -4,3 +4,5 @@ __pycache__/
 *.db
 *.jsonl
 node_modules/
+.pytest_cache/
+data/settings.json
