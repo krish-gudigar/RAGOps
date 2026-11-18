@@ -1,6 +1,7 @@
 import pytest
 
 from app.execution.metrics import Metrics, compute_metrics
+from app.config import Expert
 from app.models.domain import (
     ExecutionAttempt, TaskAnalysis, TaskExecutionResult, ValidationResult,
 )
@@ -21,7 +22,10 @@ def attempt(n, tier, valid):
                             latency_ms=0, estimated_cost=0.0, validation=validation)
 
 
-def make_result(latency, cost, final_valid, failed_before=0, tier="small"):
+def make_result(
+    latency, cost, final_valid, failed_before=0, tier="small",
+    expert=Expert.GENERAL, gate_stage=None, gate_latency=0,
+):
     """final_valid: True / False, or None when validation was off."""
     attempts = [attempt(i + 1, "small", False) for i in range(failed_before)]
     attempts.append(attempt(failed_before + 1, tier, final_valid))
@@ -30,6 +34,9 @@ def make_result(latency, cost, final_valid, failed_before=0, tier="small"):
         final_tier=tier, total_latency_ms=latency, total_estimated_cost=cost,
         was_escalated=failed_before > 0,
         success=True if final_valid is None else final_valid,
+        expert=expert,
+        gate_stage=gate_stage,
+        embedding_latency_ms=gate_latency,
     )
 
 
@@ -73,3 +80,22 @@ def test_success_rate_is_none_when_nothing_was_validated():
 def test_median_with_even_count():
     m = compute_metrics([make_result(100, 0, True), make_result(300, 0, True)])
     assert m.median_latency_ms == 200
+
+
+def test_metrics_report_expert_breakdown_and_gate_stage_shares_and_latency():
+    results = [
+        make_result(100, 0, True, expert=Expert.CODING, gate_stage="regex"),
+        make_result(100, 0, True, expert=Expert.REASONING, gate_stage="embedding", gate_latency=24),
+        make_result(100, 0, True, expert=Expert.GENERAL, gate_stage="fallback", gate_latency=40),
+        make_result(100, 0, True),
+    ]
+    metrics = compute_metrics(results)
+    assert metrics.tasks_by_expert == {"coding": 1, "reasoning": 1, "general": 2}
+    assert metrics.gate_stage_share == {
+        "regex": pytest.approx(1 / 3),
+        "embedding": pytest.approx(1 / 3),
+        "fallback": pytest.approx(1 / 3),
+    }
+    assert metrics.average_gate_latency_ms_by_stage == {
+        "regex": 0.0, "embedding": 24.0, "fallback": 40.0,
+    }

@@ -76,3 +76,8 @@ class TaskExecutionResult(BaseModel):
     total_estimated_cost: float
     was_escalated: bool
     success: bool
+    expert: Expert = Expert.GENERAL
+    model_name: str | None = None
+    gate_stage: str | None = None
+    gate_reason: str | None = None
+    embedding_latency_ms: int = 0

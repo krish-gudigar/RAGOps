@@ -95,6 +95,11 @@ class Orchestrator:
             total_estimated_cost=total_cost(attempts),
             was_escalated=len(attempts) > 1,
             success=success,
+            expert=decision.expert,
+            model_name=decision.model_name,
+            gate_stage=decision.gate_stage,
+            gate_reason=decision.gate_reason,
+            embedding_latency_ms=decision.embedding_latency_ms,
         )
         if self.repository is not None:
             self.repository.add(result)

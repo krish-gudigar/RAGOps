@@ -1,8 +1,11 @@
+import json
+
 import pytest
 
 from app.config import Expert
 from app.execution.orchestrator import Orchestrator
 from app.models.requests import TaskRequest
+from app.models.domain import RoutingDecision
 from app.providers.base import ModelRequest
 from app.providers.mock_provider import MockModelProvider
 from app.storage.answer_cache import AnswerCache, CachingProvider
@@ -49,6 +52,34 @@ def test_corrupt_lines_are_skipped(tmp_path):
         f.write("this is not json\n")
     repo.add(make_result())
     assert len(repo.all_records()) == 2
+
+
+def test_history_loads_legacy_records_without_expert_fields(tmp_path):
+    result = make_result().model_copy(update={
+        "decision": RoutingDecision(
+            selected_tier="small", selected_model="m", strategy="dynamic", reason="legacy",
+        )
+    })
+    payload = result.model_dump(mode="json")
+    for name in ("expert", "model_name", "gate_stage", "gate_reason", "embedding_latency_ms"):
+        payload.pop(name)
+    for name in ("expert", "model_name", "reason", "input_tokens", "output_tokens"):
+        payload["attempts"][0].pop(name)
+    for name in (
+        "expert", "model_name", "gate_stage", "gate_reason",
+        "fallback_reason", "embedding_latency_ms", "expert_scores",
+    ):
+        payload["decision"].pop(name)
+    path = tmp_path / "legacy.jsonl"
+    path.write_text(
+        json.dumps({"timestamp": "2026-01-01T00:00:00+00:00", "result": payload}) + "\n",
+        encoding="utf-8",
+    )
+
+    [record] = HistoryRepository(path).all_records()
+    assert record.result.expert == Expert.GENERAL
+    assert record.result.gate_stage is None
+    assert record.result.attempts[0].reason == "initial"
 
 
 def test_store_task_text_false_hides_text_but_keeps_numbers(tmp_path):
