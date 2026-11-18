@@ -5,6 +5,7 @@ more specific types (debugging, coding) come before generic ones.
 """
 
 import re
+from dataclasses import dataclass
 
 _RULES: list[tuple[str, list[str]]] = [
     ("debugging", [
@@ -47,11 +48,28 @@ _RULES: list[tuple[str, list[str]]] = [
 ]
 
 
-def detect_task_type(task: str) -> tuple[str, list[str]]:
-    """Return (task_type, signals). Signals show which words triggered the type."""
+@dataclass(frozen=True)
+class TaskTypeMatch:
+    task_type: str
+    signals: tuple[str, ...]
+    matched_specific: bool
+
+
+def detect_task_type_details(task: str) -> TaskTypeMatch:
+    """Return the match and whether it is more specific than the generic question/default."""
     text = task.lower()
     for task_type, patterns in _RULES:
         hits = [m.group(0) for p in patterns if (m := re.search(p, text))]
         if hits:
-            return task_type, [f"type={task_type}: matched '{h}'" for h in hits]
-    return "unknown", []
+            return TaskTypeMatch(
+                task_type=task_type,
+                signals=tuple(f"type={task_type}: matched '{h}'" for h in hits),
+                matched_specific=task_type not in {"general_question", "unknown"},
+            )
+    return TaskTypeMatch(task_type="unknown", signals=(), matched_specific=False)
+
+
+def detect_task_type(task: str) -> tuple[str, list[str]]:
+    """Return (task_type, signals), preserving the original public shape."""
+    match = detect_task_type_details(task)
+    return match.task_type, list(match.signals)
