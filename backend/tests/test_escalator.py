@@ -1,9 +1,11 @@
 import pytest
 
+from app.config import Expert, Settings
 from app.execution.escalation import (
     escalation_reasons, next_tier, run_with_escalation, total_cost, total_latency,
 )
 from app.models.domain import TaskAnalysis, ValidationResult
+from app.providers.base import ModelRequest, ModelResponse
 from app.providers.mock_provider import MockModelProvider
 
 provider = MockModelProvider()
@@ -139,3 +141,78 @@ def test_code_syntax_error_triggers_escalation():
     )
     assert [a.tier for a in attempts] == ["small", "medium", "strong"]
     assert "syntax" in attempts[0].validation.errors[0].lower()
+
+
+def test_expert_escalates_through_its_tiers_then_falls_back_to_general_strong():
+    attempts = run_with_escalation(
+        task="Write a function. [mock:expert=coding]",
+        analysis=make_analysis("high", "coding"),
+        start_tier="small",
+        start_expert=Expert.CODING,
+        provider=provider,
+        validate=always_fail,
+        settings=Settings(),
+    )
+    assert [attempt.tier for attempt in attempts] == ["small", "medium", "strong", "strong"]
+    assert [attempt.expert for attempt in attempts] == [
+        Expert.CODING, Expert.CODING, Expert.CODING, Expert.GENERAL,
+    ]
+    assert [attempt.reason for attempt in attempts] == [
+        "initial", "escalate_tier", "escalate_tier", "fallback_general",
+    ]
+    assert attempts[-1].model_name == Settings().models["strong"].name
+    assert not attempts[-1].escalated
+
+
+def test_expert_strong_fallback_is_only_attempted_once():
+    attempts = run_with_escalation(
+        task="Write a function.",
+        analysis=make_analysis("high", "coding"),
+        start_tier="strong",
+        start_expert=Expert.CODING,
+        provider=provider,
+        validate=always_fail,
+        settings=Settings(),
+    )
+    assert [attempt.reason for attempt in attempts] == ["initial", "fallback_general"]
+    assert attempts[-1].expert == Expert.GENERAL
+
+
+def test_validation_uses_clean_text_but_attempt_retains_raw_think_block():
+    class ThinkProvider:
+        name = "test"
+
+        def generate(self, request: ModelRequest) -> ModelResponse:
+            return ModelResponse(
+                text="clean answer",
+                raw_text="<think>hidden reasoning</think>clean answer",
+                model="test-model",
+                tier=request.tier,
+                input_tokens=2,
+                output_tokens=3,
+                latency_ms=1,
+            )
+
+        def estimate_cost(self, request: ModelRequest, response: ModelResponse) -> float:
+            return 0.0
+
+        def get_model_info(self):
+            raise NotImplementedError
+
+    validated = []
+
+    def validate_clean(task, response, analysis):
+        validated.append(response)
+        return ValidationResult(
+            valid=True, validator_type="test", score=1.0,
+        )
+
+    [attempt] = run_with_escalation(
+        task="Explain something.",
+        analysis=make_analysis(),
+        start_tier="small",
+        provider=ThinkProvider(),
+        validate=validate_clean,
+    )
+    assert validated == ["clean answer"]
+    assert attempt.response == "<think>hidden reasoning</think>clean answer"

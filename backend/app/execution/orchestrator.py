@@ -72,6 +72,9 @@ class Orchestrator:
             enable_validation=request.enable_validation,
             enable_escalation=request.enable_escalation,
             max_escalations=request.max_escalations,
+            start_expert=decision.expert,
+            model_name=decision.model_name,
+            settings=self.settings,
         )
 
         final = attempts[-1]

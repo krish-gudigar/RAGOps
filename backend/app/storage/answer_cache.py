@@ -20,6 +20,8 @@ def make_key(provider: ModelProvider, request: ModelRequest) -> str:
         "provider": provider.name,
         "model": provider.get_model_info().models.get(request.tier),
         "tier": request.tier,
+        "expert": request.expert.value,
+        "model_name": request.model_name or provider.get_model_info().models.get(request.tier),
         "task": request.task,
         "max_output_tokens": request.max_output_tokens,
     }

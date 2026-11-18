@@ -51,8 +51,13 @@ class ValidationResult(BaseModel):
 class ExecutionAttempt(BaseModel):
     attempt_number: int
     tier: Tier
+    expert: Expert = Expert.GENERAL
     model: str
+    model_name: str | None = None
+    reason: str = "initial"
     response: str
+    input_tokens: int = 0
+    output_tokens: int = 0
     latency_ms: int
     estimated_cost: float
     validation: ValidationResult | None = None  # None when validation is off

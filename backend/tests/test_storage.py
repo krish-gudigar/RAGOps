@@ -1,5 +1,6 @@
 import pytest
 
+from app.config import Expert
 from app.execution.orchestrator import Orchestrator
 from app.models.requests import TaskRequest
 from app.providers.base import ModelRequest
@@ -83,8 +84,14 @@ class NoHintsMock(CountingMock):
     uses_request_hints = False
 
 
-def req(task="Explain rainbows.", tier="small", difficulty="low"):
-    return ModelRequest(task=task, tier=tier, task_type="general_question", difficulty=difficulty)
+def req(
+    task="Explain rainbows.", tier="small", difficulty="low",
+    expert=Expert.GENERAL, model_name=None,
+):
+    return ModelRequest(
+        task=task, tier=tier, task_type="general_question", difficulty=difficulty,
+        expert=expert, model_name=model_name,
+    )
 
 
 def test_second_identical_request_is_served_from_cache():
@@ -104,6 +111,15 @@ def test_different_tier_or_task_is_a_miss():
     provider.generate(req(tier="medium"))
     provider.generate(req(task="Something else."))
     assert inner.calls == 3 and len(provider.cache) == 3
+
+
+def test_cache_does_not_collide_across_experts_or_model_names():
+    inner = CountingMock()
+    provider = CachingProvider(inner, AnswerCache())
+    provider.generate(req(expert=Expert.CODING, model_name="coder:1b"))
+    provider.generate(req(expert=Expert.REASONING, model_name="reasoner:1b"))
+    provider.generate(req(expert=Expert.CODING, model_name="coder:3b"))
+    assert inner.calls == 3
 
 
 def test_mock_answers_depend_on_hints_so_hints_are_part_of_the_key():
