@@ -39,7 +39,7 @@ STRONG_REASONING_PATTERNS = [
     r"\bjustify\b", r"\bderive\b", r"\boptimi[sz]e\b", r"\broot cause\b",
 ]
 MILD_REASONING_PATTERNS = [
-    r"\bwhy\b", r"\bcompare\b", r"\bexplain\b", r"\bpros and cons\b",
+    r"\bwhy\b", r"\bcompare\b", r"\b(?:explain|explanation)\b", r"\bpros and cons\b",
     r"\bdifference between\b",
 ]
 LARGE_CONTEXT_PATTERNS = [

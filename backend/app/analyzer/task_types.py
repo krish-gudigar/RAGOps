@@ -40,7 +40,7 @@ _RULES: list[tuple[str, list[str]]] = [
     ]),
     ("reasoning", [
         r"\bwhy\b", r"\bcompare\b", r"\btrade-?offs?\b", r"\bpros and cons\b",
-        r"\banaly[sz]e\b", r"\bevaluate\b", r"\bjustify\b", r"\bexplain\b",
+        r"\banaly[sz]e\b", r"\bevaluate\b", r"\bjustify\b", r"\b(?:explain|explanation)\b",
     ]),
     ("general_question", [
         r"^\s*(what|who|when|where|which|how)\b", r"\?\s*$",

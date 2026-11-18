@@ -38,6 +38,7 @@ def test_fallback_when_tiktoken_unavailable(monkeypatch):
     ("Solve 2x + 3 = 11.", "mathematics"),
     ("Plan a 3-day study schedule for my exams.", "planning"),
     ("Compare REST and GraphQL and explain the trade-offs.", "reasoning"),
+    ("Tell me how your model architecture works and give an explanation.", "reasoning"),
     ("What is the capital of France?", "general_question"),
     ("asdf qwerty", "unknown"),
 ])
@@ -56,6 +57,25 @@ def test_simple_transformation_is_low():
 def test_simple_question_is_low():
     a = analyzer.analyze("What is the capital of France?")
     assert a.task_type == "general_question"
+    assert a.difficulty == "low"
+
+
+def test_architecture_explanation_is_not_scored_as_trivial():
+    a = analyzer.analyze(
+        "Tell me how do you work with your model architecture explanation and everything"
+    )
+    assert a.task_type == "reasoning"
+    assert (a.complexity_score, a.reasoning_score, a.context_score,
+            a.constraints_score, a.reliability_score) == (2, 1, 0, 0, 1)
+    assert a.total_score == 4
+    assert a.difficulty == "medium"
+    assert any("explanation" in signal for signal in a.detected_signals)
+
+
+def test_simple_architecture_definition_remains_low():
+    a = analyzer.analyze("What is a model architecture?")
+    assert a.task_type == "general_question"
+    assert a.total_score == 2
     assert a.difficulty == "low"
 
 
