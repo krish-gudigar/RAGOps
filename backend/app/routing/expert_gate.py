@@ -16,7 +16,6 @@ import numpy as np
 
 from app.analyzer.task_types import detect_task_type_details
 from app.config import Expert, Settings, TASK_TYPE_TO_EXPERT
-from app.providers.errors import ProviderError
 
 log = logging.getLogger("routewise.expert_gate")
 _PROJECT_ROOT = Path(__file__).resolve().parents[3]

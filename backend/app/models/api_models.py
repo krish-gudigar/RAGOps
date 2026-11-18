@@ -92,7 +92,7 @@ class SettingsSnapshot(BaseModel):
     embedding_min_margin: float
     embedding_timeout_s: float
     models: dict[str, ModelSettings]
-    expert_models: dict[Expert, dict[str, str | None]]
+    expert_models: dict[Expert, dict[Tier, str | None]]
     expert_model_prices: dict[str, ModelSettings]
 
 
@@ -122,7 +122,7 @@ class SettingsUpdate(BaseModel):
     embedding_min_margin: float | None = Field(default=None, ge=0, le=2)
     embedding_timeout_s: float | None = Field(default=None, gt=0)
     models: dict[Tier, ModelSettingsUpdate] | None = None
-    expert_models: dict[Expert, dict[str, str | None]] | None = None
+    expert_models: dict[Expert, dict[Tier, str | None]] | None = None
     expert_model_prices: dict[str, ModelSettingsUpdate] | None = None
 
 

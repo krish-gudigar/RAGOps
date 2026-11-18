@@ -86,6 +86,19 @@ class SettingsStore:
         if thresholds["medium_context_tokens"] >= thresholds["long_context_tokens"]:
             raise ValueError("medium_context_tokens must be smaller than long_context_tokens.")
 
+        new_model_names = {
+            name
+            for tiers in (update.expert_models or {}).values()
+            for name in tiers.values()
+            if name
+        }
+        unknown_prices = set(update.expert_model_prices or {}) - (
+            set(s.expert_model_prices) | new_model_names
+        )
+        if unknown_prices:
+            names = ", ".join(sorted(unknown_prices))
+            raise ValueError(f"Unknown expert model price entry: {names}.")
+
         for name, value in thresholds.items():
             setattr(s.thresholds, name, value)
         if update.raise_small_for_high_reliability is not None:
@@ -107,8 +120,6 @@ class SettingsStore:
             for field, value in model_update.model_dump(exclude_none=True).items():
                 setattr(s.models[tier], field, value)
         for name, model_update in (update.expert_model_prices or {}).items():
-            if name not in s.expert_model_prices:
-                raise ValueError(f"Unknown expert model price entry '{name}'.")
             for field, value in model_update.model_dump(exclude_none=True).items():
                 setattr(s.expert_model_prices[name], field, value)
 

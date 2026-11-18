@@ -284,6 +284,8 @@ def test_partial_update_leaves_other_values_alone(client):
     {"thresholds": {"low_max": 99}},                                           # out of range
     {"models": {"small": {"price_in_per_1m": -1}}},
     {"models": {"huge": {"price_in_per_1m": 1}}},
+    {"expert_models": {"coding": {"huge": "not-a-tier-model"}}},
+    {"expert_model_prices": {"unconfigured-model": {"price_in_per_1m": 1}}},
 ])
 def test_invalid_settings_are_rejected_and_change_nothing(client, payload):
     before = client.get("/api/config").json()["settings"]
