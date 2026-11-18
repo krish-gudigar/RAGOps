@@ -76,11 +76,19 @@ def test_expert_gate_settings_are_exposed_and_persisted(client, tmp_path):
         "embedding_min_score": 0.6,
         "embedding_min_margin": 0.1,
         "embedding_timeout_s": 2.5,
+        "expert_models": {"coding": {"medium": "custom-coder:1.5b"}},
     })
     assert updated.status_code == 200
     saved = json.loads((tmp_path / "settings.json").read_text(encoding="utf-8"))
     assert saved["use_experts"] is True
     assert saved["embedding_model"] == "custom-embedder"
+    assert saved["expert_models"]["coding"]["medium"] == "custom-coder:1.5b"
+
+    fresh_settings = Settings()
+    SettingsStore(fresh_settings, tmp_path / "settings.json")
+    assert fresh_settings.expert_models[next(
+        expert for expert in fresh_settings.expert_models if expert.value == "coding"
+    )]["medium"] == "custom-coder:1.5b"
 
 
 def test_execute_accepts_per_request_expert_override(client):

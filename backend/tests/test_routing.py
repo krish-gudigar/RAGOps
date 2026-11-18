@@ -1,7 +1,7 @@
 import pytest
 
 from app.analyzer.task_analyzer import TaskAnalyzer
-from app.config import Settings
+from app.config import Expert, Settings, TASK_TYPE_TO_EXPERT
 from app.models.domain import TaskAnalysis
 from app.routing.baselines import AlwaysSmallRouter, AlwaysStrongRouter, RandomRouter
 from app.routing.factory import get_router
@@ -34,6 +34,33 @@ def test_strong_costs_more_than_small():
 def test_model_names_can_come_from_environment(monkeypatch):
     monkeypatch.setenv("SMALL_MODEL", "llama3.2:1b")
     assert Settings().model_for("small").name == "llama3.2:1b"
+
+
+@pytest.mark.parametrize("task_type, expert", [
+    ("debugging", Expert.CODING),
+    ("coding", Expert.CODING),
+    ("mathematics", Expert.REASONING),
+    ("reasoning", Expert.REASONING),
+    ("planning", Expert.REASONING),
+    ("summarization", Expert.GENERAL),
+    ("extraction", Expert.GENERAL),
+    ("structured_output", Expert.GENERAL),
+    ("transformation", Expert.GENERAL),
+    ("general_question", Expert.GENERAL),
+    ("unknown", Expert.GENERAL),
+])
+def test_task_types_map_to_the_configured_expert(task_type, expert):
+    assert TASK_TYPE_TO_EXPERT[task_type] == expert
+
+
+def test_expert_model_prices_default_to_the_general_tier_prices():
+    settings = Settings()
+    coding_model = settings.model_for("medium", Expert.CODING)
+    general_model = settings.model_for("medium")
+    assert coding_model.name == settings.expert_models[Expert.CODING]["medium"]
+    assert coding_model.price_in_per_1m == general_model.price_in_per_1m
+    assert coding_model.price_out_per_1m == general_model.price_out_per_1m
+    assert all(settings.expert_models[Expert.REASONING][tier] is None for tier in settings.models)
 
 
 # ---------- baselines ----------

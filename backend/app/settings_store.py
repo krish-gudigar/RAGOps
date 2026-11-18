@@ -40,6 +40,11 @@ class SettingsStore:
             embedding_min_margin=s.embedding_min_margin,
             embedding_timeout_s=s.embedding_timeout_s,
             models={tier: ModelSettings(**dataclasses.asdict(m)) for tier, m in s.models.items()},
+            expert_models=copy.deepcopy(s.expert_models),
+            expert_model_prices={
+                name: ModelSettings(**dataclasses.asdict(model))
+                for name, model in s.expert_model_prices.items()
+            },
         )
 
     # ---------- change ----------
@@ -61,6 +66,8 @@ class SettingsStore:
         s.embedding_min_score = d.embedding_min_score
         s.embedding_min_margin = d.embedding_min_margin
         s.embedding_timeout_s = d.embedding_timeout_s
+        s.expert_models = copy.deepcopy(d.expert_models)
+        s.expert_model_prices = copy.deepcopy(d.expert_model_prices)
         for tier, model in s.models.items():
             for field in ("price_in_per_1m", "price_out_per_1m", "expected_latency_ms"):
                 setattr(model, field, getattr(d.models[tier], field))
@@ -92,9 +99,18 @@ class SettingsStore:
             value = getattr(update, name)
             if value is not None:
                 setattr(s, name, value)
+        if update.expert_models:
+            for expert, tier_models in update.expert_models.items():
+                s.expert_models[expert].update(tier_models)
+            s.ensure_expert_model_prices()
         for tier, model_update in (update.models or {}).items():
             for field, value in model_update.model_dump(exclude_none=True).items():
                 setattr(s.models[tier], field, value)
+        for name, model_update in (update.expert_model_prices or {}).items():
+            if name not in s.expert_model_prices:
+                raise ValueError(f"Unknown expert model price entry '{name}'.")
+            for field, value in model_update.model_dump(exclude_none=True).items():
+                setattr(s.expert_model_prices[name], field, value)
 
     def _save(self) -> None:
         if not self.path:
@@ -102,6 +118,8 @@ class SettingsStore:
         snap = self.snapshot().model_dump()
         for model in snap["models"].values():
             model.pop("name")          # names come from .env, not from this file
+        for model in snap["expert_model_prices"].values():
+            model.pop("name")
         self.path.parent.mkdir(parents=True, exist_ok=True)
         self.path.write_text(json.dumps(snap, indent=2), encoding="utf-8")
 
