@@ -1,0 +1,106 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --background: 220 20% 97%;
+    --foreground: 224 25% 12%;
+    --card: 0 0% 100%;
+    --card-foreground: 224 25% 12%;
+    --muted: 220 14% 92%;
+    --muted-foreground: 220 10% 44%;
+    --border: 220 13% 88%;
+    --input: 220 13% 88%;
+    --ring: 217 91% 60%;
+    --accent: 217 91% 60%;
+    --accent-foreground: 0 0% 100%;
+  }
+
+  .dark {
+    --background: 224 25% 7%;
+    --foreground: 210 20% 98%;
+    --card: 224 20% 10%;
+    --card-foreground: 210 20% 98%;
+    --muted: 223 16% 16%;
+    --muted-foreground: 217 10% 60%;
+    --border: 223 16% 20%;
+    --input: 223 16% 20%;
+    --ring: 217 91% 60%;
+    --accent: 217 91% 60%;
+    --accent-foreground: 0 0% 100%;
+  }
+}
+
+/* React Flow canvas styling */
+.react-flow__attribution {
+  display: none !important;
+}
+
+.react-flow__pane {
+  cursor: grab;
+}
+
+.react-flow__pane:active {
+  cursor: grabbing;
+}
+
+/* React Flow controls */
+.dark .react-flow__controls {
+  background-color: hsl(224 20% 10%);
+  border: 1px solid hsl(223 16% 20%);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.dark .react-flow__controls-button {
+  background-color: transparent;
+  border-bottom: 1px solid hsl(223 16% 20%);
+  color: hsl(210 20% 98%);
+  fill: hsl(210 20% 98%);
+}
+
+.dark .react-flow__controls-button:hover {
+  background-color: hsl(223 16% 18%);
+}
+
+/* MiniMap styling */
+.dark .react-flow__minimap {
+  background-color: hsl(224 20% 10%) !important;
+  border: 1px solid hsl(223 16% 20%) !important;
+  border-radius: 8px !important;
+  overflow: hidden;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+}
+
+.light .react-flow__minimap {
+  background-color: hsl(0 0% 100%) !important;
+  border: 1px solid hsl(220 13% 88%) !important;
+  border-radius: 8px !important;
+  overflow: hidden;
+}
+
+/* Custom dashed animated edges */
+@keyframes dash-flow {
+  from {
+    stroke-dashoffset: 24;
+  }
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+
+.animated-edge path {
+  stroke-dasharray: 6 6;
+  animation: dash-flow 0.8s linear infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animated-edge path {
+    animation: none !important;
+  }
+  * {
+    transition-duration: 0.01ms !important;
+  }
+}
