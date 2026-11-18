@@ -19,12 +19,13 @@ import re
 import time
 
 from app.analyzer.token_estimator import estimate_tokens
-from app.config import Settings
+from app.config import Expert, Settings
 from app.providers.base import ModelInfo, ModelRequest, ModelResponse
 
 TIER_LEVEL = {"small": 0, "medium": 1, "strong": 2}
 DIFFICULTY_LEVEL = {"low": 0, "medium": 1, "high": 2}
 NEEDS_TAG = re.compile(r"\[mock:needs=(small|medium|strong)\]", re.IGNORECASE)
+EXPERT_TAG = re.compile(r"\[mock:expert=(coding|reasoning)\]", re.IGNORECASE)
 
 # What a "failed" general answer looks like. The validators in Phase 4
 # must recognise this kind of text as a failure.
@@ -50,7 +51,10 @@ class MockModelProvider:
     def generate(self, request: ModelRequest) -> ModelResponse:
         succeeds = TIER_LEVEL[request.tier] >= self._required_level(request)
         clean_task = NEEDS_TAG.sub("", request.task).strip()
-        text = self._write_answer(clean_task, request.task_type, succeeds, request.tier)
+        tag = EXPERT_TAG.search(clean_task)
+        expert = Expert(tag.group(1).lower()) if tag else request.expert
+        clean_task = EXPERT_TAG.sub("", clean_task).strip()
+        text = self._write_answer(clean_task, request.task_type, succeeds, request.tier, expert)
 
         output_tokens = estimate_tokens(text)
         latency_ms = (
@@ -62,7 +66,7 @@ class MockModelProvider:
 
         return ModelResponse(
             text=text,
-            model=self.settings.model_for(request.tier).name,
+            model=request.model_name or self.settings.model_for(request.tier, expert).name,
             tier=request.tier,
             input_tokens=estimate_tokens(request.task),
             output_tokens=output_tokens,
@@ -71,7 +75,7 @@ class MockModelProvider:
 
     def estimate_cost(self, request: ModelRequest, response: ModelResponse) -> float:
         return self.settings.estimate_cost(
-            request.tier, response.input_tokens, response.output_tokens
+            request.tier, response.input_tokens, response.output_tokens, request.expert
         )
 
     def get_model_info(self) -> ModelInfo:
@@ -95,18 +99,25 @@ class MockModelProvider:
         one_line = " ".join(task.split())
         return one_line[:60]
 
-    def _write_answer(self, task: str, task_type: str, succeeds: bool, tier: str) -> str:
+    def _write_answer(
+        self, task: str, task_type: str, succeeds: bool, tier: str,
+        expert: Expert = Expert.GENERAL,
+    ) -> str:
         topic = self._topic(task)
+        expert_marker = f"[mock expert: {expert.value}] " if expert != Expert.GENERAL else ""
 
         if task_type == "structured_output":
-            good = json.dumps({"summary": topic, "answered_by": tier, "status": "complete"})
+            data = {"summary": topic, "answered_by": tier, "status": "complete"}
+            if expert != Expert.GENERAL:
+                data["expert"] = expert.value
+            good = json.dumps(data)
             # Failure: cut off the closing brace and leave a trailing comma
             return good if succeeds else good[:-1] + ","
 
         if task_type in CODE_TASK_TYPES:
             colon = ":" if succeeds else ""   # missing colon = syntax error
             return "\n".join([
-                "Here is a solution:",
+                f"{expert_marker}Here is a solution:",
                 "",
                 "```python",
                 f"def solution(data){colon}",
@@ -116,10 +127,11 @@ class MockModelProvider:
             ])
 
         if not succeeds:
-            return MOCK_FAILURE_TEXT
+            return f"{expert_marker}{MOCK_FAILURE_TEXT}"
 
         points = [
             f"- Point {i}: a simulated detail about '{topic}'."
             for i in range(1, DETAIL_POINTS_BY_TIER[tier] + 1)
         ]
-        return "\n".join([f"[mock answer from the {tier} tier] Response about: {topic}", *points])
+        prefix = f"{expert_marker}[mock answer from the {tier} tier] Response about: {topic}"
+        return "\n".join([prefix, *points])

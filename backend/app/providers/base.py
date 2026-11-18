@@ -8,12 +8,15 @@ from typing import Literal, Protocol
 
 from pydantic import BaseModel, Field
 
+from app.config import Expert
 from app.models.domain import Tier
 
 
 class ModelRequest(BaseModel):
     task: str
     tier: Tier
+    expert: Expert = Expert.GENERAL
+    model_name: str | None = None
     # Hints from the analyzer. Real providers can ignore them;
     # the mock provider uses them to decide how well it "answers".
     task_type: str = "unknown"
@@ -23,6 +26,7 @@ class ModelRequest(BaseModel):
 
 class ModelResponse(BaseModel):
     text: str
+    raw_text: str | None = None
     model: str
     tier: Tier
     input_tokens: int = Field(ge=0)

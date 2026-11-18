@@ -6,7 +6,7 @@ import json
 import httpx
 import pytest
 
-from app.config import ModelConfig, Settings
+from app.config import Expert, ModelConfig, Settings
 from app.execution.orchestrator import Orchestrator
 from app.models.requests import TaskRequest
 from app.providers.base import ModelRequest
@@ -62,6 +62,28 @@ def test_uses_token_counts_reported_by_ollama():
     resp = provider.generate(req())
     assert (resp.input_tokens, resp.output_tokens) == (11, 22)
     assert resp.text == "answer" and resp.model == "tiny:0.5b" and resp.tier == "small"
+
+
+def test_expert_model_name_is_used_and_think_blocks_are_stripped_but_preserved():
+    seen = {}
+
+    def handler(request):
+        body = json.loads(request.content)
+        seen["model"] = body["model"]
+        return httpx.Response(200, json={
+            "response": "Answer before. <think>private reasoning</think> Answer after.",
+            "prompt_eval_count": 4,
+            "eval_count": 8,
+        })
+
+    request = ModelRequest(
+        task="Explain something.", tier="medium", expert=Expert.CODING,
+        model_name="verified-coder:1.5b",
+    )
+    response = make_provider(handler).generate(request)
+    assert seen["model"] == "verified-coder:1.5b"
+    assert response.text == "Answer before.  Answer after."
+    assert response.raw_text == "Answer before. <think>private reasoning</think> Answer after."
 
 
 def test_estimates_tokens_when_ollama_does_not_report_them():

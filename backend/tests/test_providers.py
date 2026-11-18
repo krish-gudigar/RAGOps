@@ -4,7 +4,7 @@ import re
 
 import pytest
 
-from app.config import Settings
+from app.config import Expert, Settings
 from app.providers.base import ModelRequest
 from app.providers.mock_provider import MOCK_FAILURE_TEXT, MockModelProvider
 
@@ -57,6 +57,13 @@ def test_tag_forces_a_stricter_requirement():
 def test_tag_is_not_echoed_in_the_answer():
     text = provider.generate(req("Explain DNS [mock:needs=small]", tier="small")).text
     assert "mock:needs" not in text
+
+
+@pytest.mark.parametrize("expert", [Expert.CODING, Expert.REASONING])
+def test_expert_override_tag_is_reflected_in_mock_output(expert):
+    task = f"Explain DNS [mock:expert={expert.value}]"
+    response = provider.generate(req(task, tier="strong"))
+    assert f"mock expert: {expert.value}" in response.text
 
 
 # ---------- answer shapes by task type ----------

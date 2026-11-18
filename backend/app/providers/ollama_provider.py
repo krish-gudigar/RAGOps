@@ -18,12 +18,13 @@ Notes
 """
 
 import os
+import re
 import time
 
 import httpx
 
 from app.analyzer.token_estimator import estimate_tokens
-from app.config import TIERS, Settings
+from app.config import Expert, TIERS, Settings
 from app.providers.base import ModelInfo, ModelRequest, ModelResponse
 from app.providers.errors import ProviderError
 
@@ -36,6 +37,12 @@ SYSTEM_HINTS = {
     "coding": "Put any Python code inside a ```python code block.",
     "debugging": "Put any Python code inside a ```python code block.",
 }
+_THINK_BLOCK_RE = re.compile(r"<think>.*?</think>", re.IGNORECASE | re.DOTALL)
+
+
+def strip_reasoning_blocks(text: str) -> str:
+    """Remove model-internal think blocks from the answer used for validation."""
+    return _THINK_BLOCK_RE.sub("", text).strip()
 
 
 class OllamaProvider:
@@ -57,7 +64,7 @@ class OllamaProvider:
 
     # ---------- public interface ----------
     def generate(self, request: ModelRequest) -> ModelResponse:
-        model = self._model_name(request.tier)
+        model = self._model_name(request.tier, request.expert, request.model_name)
         payload = {
             "model": model,
             "prompt": request.task,
@@ -73,11 +80,13 @@ class OllamaProvider:
         data = self._post("/api/generate", payload, model)
         latency_ms = round((time.perf_counter() - started) * 1000)
 
-        text = data.get("response", "")
+        raw_text = data.get("response", "")
+        text = strip_reasoning_blocks(raw_text)
         input_tokens = data.get("prompt_eval_count")
         output_tokens = data.get("eval_count")
         return ModelResponse(
             text=text,
+            raw_text=raw_text,
             model=model,
             tier=request.tier,
             input_tokens=input_tokens if input_tokens is not None else estimate_tokens(request.task),
@@ -86,7 +95,9 @@ class OllamaProvider:
         )
 
     def estimate_cost(self, request: ModelRequest, response: ModelResponse) -> float:
-        return self.settings.estimate_cost(request.tier, response.input_tokens, response.output_tokens)
+        return self.settings.estimate_cost(
+            request.tier, response.input_tokens, response.output_tokens, request.expert
+        )
 
     def get_model_info(self) -> ModelInfo:
         return ModelInfo(
@@ -117,17 +128,20 @@ class OllamaProvider:
                 missing.append(name)
         return missing
 
-    def warm_up(self, tier: str) -> None:
+    def warm_up(self, tier: str, expert: Expert = Expert.GENERAL) -> None:
         """Load a model into memory so the first real request is not slowed by loading."""
+        model = self._model_name(tier, expert)
         self._post(
             "/api/generate",
-            {"model": self._model_name(tier), "prompt": "Hi", "stream": False,
+            {"model": model, "prompt": "Hi", "stream": False,
              "keep_alive": self.keep_alive, "options": {"num_predict": 1}},
-            self._model_name(tier),
+            model,
         )
 
-    def _model_name(self, tier: str) -> str:
-        name = self.settings.model_for(tier).name
+    def _model_name(
+        self, tier: str, expert: Expert = Expert.GENERAL, model_name: str | None = None,
+    ) -> str:
+        name = model_name or self.settings.model_for(tier, expert).name
         if name.endswith(PLACEHOLDER_SUFFIX):
             raise ProviderError(
                 f"The {tier} model is still the demo placeholder '{name}'. "
