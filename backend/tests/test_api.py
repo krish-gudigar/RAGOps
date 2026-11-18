@@ -60,6 +60,34 @@ def test_config_describes_the_setup(client):
     assert "prototype" in body["note"]
 
 
+def test_expert_gate_settings_are_exposed_and_persisted(client, tmp_path):
+    settings = client.get("/api/config").json()["settings"]
+    assert settings["use_experts"] is False
+    assert settings["embedding_model"] == "all-minilm"
+    assert settings["embedding_top_k"] == 3
+    assert settings["embedding_min_score"] == 0.45
+    assert settings["embedding_min_margin"] == 0.05
+    assert settings["embedding_timeout_s"] == 15.0
+
+    updated = client.post("/api/settings", json={
+        "use_experts": True,
+        "embedding_model": "custom-embedder",
+        "embedding_top_k": 5,
+        "embedding_min_score": 0.6,
+        "embedding_min_margin": 0.1,
+        "embedding_timeout_s": 2.5,
+    })
+    assert updated.status_code == 200
+    saved = json.loads((tmp_path / "settings.json").read_text(encoding="utf-8"))
+    assert saved["use_experts"] is True
+    assert saved["embedding_model"] == "custom-embedder"
+
+
+def test_execute_accepts_per_request_expert_override(client):
+    response = client.post("/api/execute", json={"task": SIMPLE, "use_experts": True})
+    assert response.status_code == 200
+
+
 def test_docs_page_is_available(client):
     assert client.get("/docs").status_code == 200
 

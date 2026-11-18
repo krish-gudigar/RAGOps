@@ -8,9 +8,15 @@ ESTIMATES based on these numbers.
 import os
 from dataclasses import dataclass, field
 
+from pathlib import Path
 from dotenv import load_dotenv
 
-load_dotenv()  # reads a local .env file if it exists
+# Look for .env in project root or current working dir
+_root_env = Path(__file__).resolve().parent.parent.parent / ".env"
+if _root_env.exists():
+    load_dotenv(_root_env)
+else:
+    load_dotenv()
 
 TIERS = ("small", "medium", "strong")  # order matters: weakest to strongest
 
@@ -49,6 +55,15 @@ def _default_models() -> dict[str, ModelConfig]:
 class Settings:
     thresholds: Thresholds = field(default_factory=Thresholds)
     models: dict[str, ModelConfig] = field(default_factory=_default_models)
+
+    # Expert routing is opt-in. Embedding settings are placeholders to tune with
+    # scripts/inspect_gate.py after reviewing the local example bank.
+    use_experts: bool = False
+    embedding_model: str = "all-minilm"
+    embedding_top_k: int = 3
+    embedding_min_score: float = 0.45
+    embedding_min_margin: float = 0.05
+    embedding_timeout_s: float = 15.0
 
     # Output length is unknown before running, so cost estimates assume this.
     assumed_output_tokens: int = 200

@@ -83,6 +83,12 @@ class SettingsSnapshot(BaseModel):
     thresholds: ThresholdValues
     raise_small_for_high_reliability: bool
     assumed_output_tokens: int
+    use_experts: bool
+    embedding_model: str
+    embedding_top_k: int
+    embedding_min_score: float
+    embedding_min_margin: float
+    embedding_timeout_s: float
     models: dict[str, ModelSettings]
 
 
@@ -105,6 +111,12 @@ class SettingsUpdate(BaseModel):
     thresholds: ThresholdsUpdate | None = None
     raise_small_for_high_reliability: bool | None = None
     assumed_output_tokens: int | None = Field(default=None, ge=1, le=4096)
+    use_experts: bool | None = None
+    embedding_model: str | None = Field(default=None, min_length=1)
+    embedding_top_k: int | None = Field(default=None, ge=1)
+    embedding_min_score: float | None = Field(default=None, ge=-1, le=1)
+    embedding_min_margin: float | None = Field(default=None, ge=0, le=2)
+    embedding_timeout_s: float | None = Field(default=None, gt=0)
     models: dict[Tier, ModelSettingsUpdate] | None = None
 
 

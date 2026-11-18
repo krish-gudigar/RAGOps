@@ -33,6 +33,12 @@ class SettingsStore:
             thresholds=ThresholdValues(**dataclasses.asdict(s.thresholds)),
             raise_small_for_high_reliability=s.raise_small_for_high_reliability,
             assumed_output_tokens=s.assumed_output_tokens,
+            use_experts=s.use_experts,
+            embedding_model=s.embedding_model,
+            embedding_top_k=s.embedding_top_k,
+            embedding_min_score=s.embedding_min_score,
+            embedding_min_margin=s.embedding_min_margin,
+            embedding_timeout_s=s.embedding_timeout_s,
             models={tier: ModelSettings(**dataclasses.asdict(m)) for tier, m in s.models.items()},
         )
 
@@ -49,6 +55,12 @@ class SettingsStore:
             setattr(s.thresholds, f.name, getattr(d.thresholds, f.name))
         s.raise_small_for_high_reliability = d.raise_small_for_high_reliability
         s.assumed_output_tokens = d.assumed_output_tokens
+        s.use_experts = d.use_experts
+        s.embedding_model = d.embedding_model
+        s.embedding_top_k = d.embedding_top_k
+        s.embedding_min_score = d.embedding_min_score
+        s.embedding_min_margin = d.embedding_min_margin
+        s.embedding_timeout_s = d.embedding_timeout_s
         for tier, model in s.models.items():
             for field in ("price_in_per_1m", "price_out_per_1m", "expected_latency_ms"):
                 setattr(model, field, getattr(d.models[tier], field))
@@ -73,6 +85,13 @@ class SettingsStore:
             s.raise_small_for_high_reliability = update.raise_small_for_high_reliability
         if update.assumed_output_tokens is not None:
             s.assumed_output_tokens = update.assumed_output_tokens
+        for name in (
+            "use_experts", "embedding_model", "embedding_top_k",
+            "embedding_min_score", "embedding_min_margin", "embedding_timeout_s",
+        ):
+            value = getattr(update, name)
+            if value is not None:
+                setattr(s, name, value)
         for tier, model_update in (update.models or {}).items():
             for field, value in model_update.model_dump(exclude_none=True).items():
                 setattr(s.models[tier], field, value)
