@@ -18,6 +18,7 @@ from app.models.domain import RoutingDecision, TaskAnalysis, TaskExecutionResult
 from app.models.requests import TaskRequest
 from app.providers.base import ModelProvider
 from app.routing.factory import get_router
+from app.routing.expert_gate import ExpertGate
 from app.storage.repository import HistoryRepository
 from app.validation.pipeline import validate_response
 
@@ -29,23 +30,38 @@ class Orchestrator:
         settings: Settings | None = None,
         repository: HistoryRepository | None = None,
         validate: ValidateFn = validate_response,
+        expert_gate: ExpertGate | None = None,
     ):
         self.provider = provider
         self.settings = settings or Settings()
         self.repository = repository
         self.validate = validate
+        self.expert_gate = expert_gate
         self.analyzer = TaskAnalyzer(self.settings.thresholds)
 
     def analyze_and_route(
-        self, task: str, strategy: str = "dynamic"
+        self, task: str, strategy: str = "dynamic", use_experts: bool | None = None,
     ) -> tuple[TaskAnalysis, RoutingDecision]:
         """Analyze and route only. No model is called (used by /api/analyze)."""
         analysis = self.analyzer.analyze(task)
-        decision = get_router(strategy).route(analysis, self.settings)
+        expert_decision = None
+        if strategy == "dynamic" and (
+            self.settings.use_experts if use_experts is None else use_experts
+        ):
+            if self.expert_gate is None:
+                raise RuntimeError("Expert routing is enabled but no expert gate is configured.")
+            expert_decision = self.expert_gate.decide(task)
+        router = get_router(strategy)
+        if strategy == "dynamic":
+            decision = router.route(analysis, self.settings, expert_decision)
+        else:
+            decision = router.route(analysis, self.settings)
         return analysis, decision
 
     def execute(self, request: TaskRequest) -> TaskExecutionResult:
-        analysis, decision = self.analyze_and_route(request.task, request.strategy)
+        analysis, decision = self.analyze_and_route(
+            request.task, request.strategy, request.use_experts
+        )
 
         attempts = run_with_escalation(
             task=request.task,

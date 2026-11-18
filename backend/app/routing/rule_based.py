@@ -8,6 +8,7 @@ Both rules are written into the `reason` text so the decision can be explained.
 from app.config import Settings
 from app.models.domain import RoutingDecision, TaskAnalysis
 from app.routing.base import build_decision
+from app.routing.expert_gate import ExpertDecision
 
 TIER_BY_DIFFICULTY = {"low": "small", "medium": "medium", "high": "strong"}
 
@@ -15,7 +16,10 @@ TIER_BY_DIFFICULTY = {"low": "small", "medium": "medium", "high": "strong"}
 class RuleBasedRouter:
     name = "dynamic"
 
-    def route(self, analysis: TaskAnalysis, settings: Settings) -> RoutingDecision:
+    def route(
+        self, analysis: TaskAnalysis, settings: Settings,
+        expert_decision: ExpertDecision | None = None,
+    ) -> RoutingDecision:
         tier = TIER_BY_DIFFICULTY[analysis.difficulty]
         reason = (
             f"Total score {analysis.total_score}/10 means '{analysis.difficulty}' "
@@ -34,4 +38,7 @@ class RuleBasedRouter:
             )
 
         # Confidence stays None: this router has no probability to report.
-        return build_decision(tier, self.name, reason, analysis, settings, confidence=None)
+        return build_decision(
+            tier, self.name, reason, analysis, settings, confidence=None,
+            expert_decision=expert_decision,
+        )

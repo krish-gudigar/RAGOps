@@ -1,6 +1,8 @@
 from typing import Literal
 from pydantic import BaseModel, Field
 
+from app.config import Expert
+
 Tier = Literal["small", "medium", "strong"]
 Difficulty = Literal["low", "medium", "high"]
 
@@ -24,6 +26,13 @@ class RoutingDecision(BaseModel):
     selected_tier: Tier
     selected_model: str
     strategy: str
+    expert: Expert = Expert.GENERAL
+    model_name: str | None = None
+    gate_stage: str | None = None
+    gate_reason: str | None = None
+    fallback_reason: str | None = None
+    embedding_latency_ms: int = 0
+    expert_scores: dict[str, float] = Field(default_factory=dict)
     confidence: float | None = None
     reason: str
     estimated_cost: float = 0.0

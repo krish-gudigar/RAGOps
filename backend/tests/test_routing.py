@@ -6,6 +6,7 @@ from app.models.domain import TaskAnalysis
 from app.routing.baselines import AlwaysSmallRouter, AlwaysStrongRouter, RandomRouter
 from app.routing.factory import get_router
 from app.routing.rule_based import RuleBasedRouter
+from app.routing.expert_gate import ExpertDecision
 
 settings = Settings()
 
@@ -61,6 +62,42 @@ def test_expert_model_prices_default_to_the_general_tier_prices():
     assert coding_model.price_in_per_1m == general_model.price_in_per_1m
     assert coding_model.price_out_per_1m == general_model.price_out_per_1m
     assert all(settings.expert_models[Expert.REASONING][tier] is None for tier in settings.models)
+
+
+def test_expert_decision_does_not_change_rule_based_tier():
+    analysis = make_analysis(difficulty="high", total=9, reliability=1)
+    expert = ExpertDecision(
+        expert=Expert.CODING, stage="regex", reason="coding detected by regex"
+    )
+    decision = RuleBasedRouter().route(analysis, settings, expert)
+    assert decision.selected_tier == "strong"
+    assert decision.expert == Expert.CODING
+    assert decision.model_name == settings.expert_models[Expert.CODING]["strong"]
+    assert decision.gate_stage == "regex"
+    assert "score 9/10" in decision.reason
+
+
+def test_expert_model_missing_at_selected_tier_falls_back_to_general():
+    analysis = make_analysis(difficulty="medium", total=5, reliability=1)
+    expert = ExpertDecision(
+        expert=Expert.REASONING, stage="embedding", reason="matched reasoning example"
+    )
+    decision = RuleBasedRouter().route(analysis, settings, expert)
+    assert decision.selected_tier == "medium"
+    assert decision.model_name == settings.models["medium"].name
+    assert decision.expert == Expert.GENERAL
+    assert "No reasoning model configured" in decision.fallback_reason
+    assert "using the general model" in decision.reason
+
+
+def test_disabled_expert_routing_preserves_legacy_decision_reason():
+    analysis = make_analysis(difficulty="low", total=2, reliability=1)
+    decision = RuleBasedRouter().route(analysis, settings)
+    assert decision.reason == (
+        "Total score 2/10 means 'low' difficulty, so the small tier was chosen."
+    )
+    assert decision.expert == Expert.GENERAL
+    assert decision.gate_stage is None
 
 
 # ---------- baselines ----------

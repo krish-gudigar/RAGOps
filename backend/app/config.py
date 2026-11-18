@@ -153,6 +153,9 @@ class Settings:
             expected_latency_ms=base.expected_latency_ms,
         )
 
-    def estimate_cost(self, tier: str, input_tokens: int, output_tokens: int) -> float:
-        m = self.models[tier]
+    def estimate_cost(
+        self, tier: str, input_tokens: int, output_tokens: int,
+        expert: Expert = Expert.GENERAL,
+    ) -> float:
+        m = self.model_for(tier, expert)
         return (input_tokens * m.price_in_per_1m + output_tokens * m.price_out_per_1m) / 1_000_000

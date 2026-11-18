@@ -7,6 +7,8 @@ from app.config import Settings
 from app.execution.orchestrator import Orchestrator
 from app.providers.base import ModelProvider
 from app.providers.factory import get_provider
+from app.providers.ollama_provider import OllamaProvider
+from app.routing.expert_gate import ExpertGate, MockEmbedder, OllamaEmbedder
 from app.settings_store import SettingsStore
 from app.storage.repository import HistoryRepository
 
@@ -19,6 +21,7 @@ class AppState:
     repository: HistoryRepository
     orchestrator: Orchestrator          # saves every run to history
     compare_orchestrator: Orchestrator  # same pipeline, but does NOT save (keeps metrics clean)
+    expert_gate: ExpertGate
 
 
 def build_state(
@@ -29,13 +32,22 @@ def build_state(
 ) -> AppState:
     store = SettingsStore(settings, settings_path)
     repository = HistoryRepository(history_path)
+    raw_provider = provider
+    while hasattr(raw_provider, "inner"):
+        raw_provider = raw_provider.inner
+    if isinstance(raw_provider, OllamaProvider):
+        embedder = OllamaEmbedder(base_url=raw_provider.base_url)
+    else:
+        embedder = MockEmbedder()
+    expert_gate = ExpertGate(settings, embedder)
     return AppState(
         settings=settings,
         store=store,
         provider=provider,
         repository=repository,
-        orchestrator=Orchestrator(provider, settings, repository),
-        compare_orchestrator=Orchestrator(provider, settings, None),
+        orchestrator=Orchestrator(provider, settings, repository, expert_gate=expert_gate),
+        compare_orchestrator=Orchestrator(provider, settings, None, expert_gate=expert_gate),
+        expert_gate=expert_gate,
     )
 
 
