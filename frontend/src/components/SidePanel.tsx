@@ -11,7 +11,7 @@ import {
   FileText,
   CheckCircle,
   Wifi,
-  WifiOff,
+  Sparkles,
 } from 'lucide-react';
 import { CustomNodeData, RouteResult } from '../types';
 
@@ -155,6 +155,45 @@ export const SidePanel: React.FC<SidePanelProps> = ({
               </p>
             </div>
 
+            {/* Expert Gate */}
+            <div className="rounded-xl border border-border bg-card p-3.5 space-y-2">
+              <div className="flex items-center justify-between">
+                <span className="text-muted-foreground font-medium flex items-center gap-1.5">
+                  <Sparkles className="w-3.5 h-3.5 text-violet-400" />
+                  Expert Pool
+                </span>
+                <span className="text-[10px] font-bold uppercase px-2 py-0.5 rounded-md bg-violet-500/10 text-violet-500 border border-violet-500/20">
+                  {result.expert}
+                </span>
+              </div>
+              <div className="text-[11px] text-muted-foreground">
+                Gate stage: <span className="font-semibold text-foreground">{result.gateStage || 'disabled'}</span>
+                {result.embeddingLatencyMs > 0 && (
+                  <span className="ml-2">· {result.embeddingLatencyMs} ms embedding</span>
+                )}
+              </div>
+              {result.gateReason && (
+                <p className="text-muted-foreground text-[11px] leading-relaxed bg-muted/30 p-2.5 rounded-lg border border-border/40">
+                  {result.gateReason}
+                </p>
+              )}
+              {result.fallbackReason && (
+                <p className="text-amber-500 text-[11px] leading-relaxed">
+                  Model fallback: {result.fallbackReason}
+                </p>
+              )}
+              {Object.keys(result.expertScores).length > 0 && (
+                <div className="grid grid-cols-3 gap-1 text-center">
+                  {Object.entries(result.expertScores).map(([expert, score]) => (
+                    <div key={expert} className="rounded-md bg-muted/40 border border-border/40 p-1.5">
+                      <span className="block text-[9px] text-muted-foreground uppercase">{expert}</span>
+                      <span className="font-semibold text-foreground">{score.toFixed(2)}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
             {/* Telemetry Grid (Latency, Cost, Tokens) */}
             <div className="grid grid-cols-2 gap-2">
               <div className="rounded-xl border border-border bg-card p-3">
@@ -206,15 +245,9 @@ export const SidePanel: React.FC<SidePanelProps> = ({
                   Response Output
                 </span>
                 <div className="flex items-center gap-2">
-                  {result.source === 'backend' ? (
-                    <span className="text-[10px] text-emerald-500 flex items-center gap-1 px-1.5 py-0.5 rounded-md bg-emerald-500/10 border border-emerald-500/20">
-                      <Wifi className="w-3 h-3" /> Backend · Ollama
-                    </span>
-                  ) : (
-                    <span className="text-[10px] text-amber-400 flex items-center gap-1 px-1.5 py-0.5 rounded-md bg-amber-500/10 border border-amber-500/20">
-                      <WifiOff className="w-3 h-3" /> Simulation
-                    </span>
-                  )}
+                  <span className="text-[10px] text-emerald-500 flex items-center gap-1 px-1.5 py-0.5 rounded-md bg-emerald-500/10 border border-emerald-500/20">
+                    <Wifi className="w-3 h-3" /> Backend
+                  </span>
                   <span className="text-[10px] text-emerald-500 flex items-center gap-1">
                     <CheckCircle className="w-3 h-3" /> Validated
                   </span>

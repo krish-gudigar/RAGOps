@@ -1,11 +1,13 @@
 import React, { useState } from 'react';
-import { Play, Sun, Moon, Loader2, Compass } from 'lucide-react';
+import { Play, Sun, Moon, Loader2, Compass, Sparkles } from 'lucide-react';
 
 interface TopBarProps {
   onRun: (query: string) => void;
   isRunning: boolean;
   theme: 'dark' | 'light';
   onToggleTheme: () => void;
+  useExperts: boolean;
+  onToggleExperts: () => void;
 }
 
 const SAMPLE_QUERIES = [
@@ -19,6 +21,8 @@ export const TopBar: React.FC<TopBarProps> = ({
   isRunning,
   theme,
   onToggleTheme,
+  useExperts,
+  onToggleExperts,
 }) => {
   const [query, setQuery] = useState('');
 
@@ -97,6 +101,23 @@ export const TopBar: React.FC<TopBarProps> = ({
 
       {/* Right: Quick Samples & Theme Toggle */}
       <div className="flex items-center gap-2 shrink-0">
+        <button
+          type="button"
+          disabled={isRunning}
+          onClick={onToggleExperts}
+          aria-pressed={useExperts}
+          title="Use coding, reasoning, and general experts in addition to tier routing"
+          className={`h-9 px-2.5 rounded-xl border flex items-center gap-1.5 text-xs font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${
+            useExperts
+              ? 'border-violet-500/40 bg-violet-500/10 text-violet-600 dark:text-violet-300'
+              : 'border-border bg-card text-muted-foreground hover:text-foreground hover:bg-muted'
+          }`}
+        >
+          <Sparkles className="w-3.5 h-3.5" />
+          <span className="hidden sm:inline">Expert Pool</span>
+          <span className="text-[10px] uppercase">{useExperts ? 'On' : 'Off'}</span>
+        </button>
+
         {/* Sample presets dropdown / pill */}
         <div className="hidden lg:flex items-center gap-1.5 text-xs">
           <span className="text-[11px] text-muted-foreground mr-1">Presets:</span>

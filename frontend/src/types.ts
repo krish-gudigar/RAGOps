@@ -16,6 +16,12 @@ export interface RouteResult {
   tier: Tier;
   model: string;
   reason: string;
+  expert: 'general' | 'coding' | 'reasoning';
+  gateStage: string | null;
+  gateReason: string | null;
+  fallbackReason: string | null;
+  expertScores: Record<string, number>;
+  embeddingLatencyMs: number;
   latencyMs: number;
   cost: number;
   tokenCount: {
@@ -30,8 +36,7 @@ export interface RouteResult {
     constraints: number;
     reliability: number;
   };
-  /** Where the response came from: real Ollama backend or client-side simulation */
-  source: 'backend' | 'mock';
+  source: 'backend';
 }
 
 export interface QueryHistoryItem {

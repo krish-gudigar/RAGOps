@@ -114,6 +114,7 @@ export function App() {
 
   const [theme, setTheme] = useState<'dark' | 'light'>('dark');
   const [isRunning, setIsRunning] = useState(false);
+  const [useExperts, setUseExperts] = useState(false);
   const [executionError, setExecutionError] = useState<string | null>(null);
   const [currentQuery, setCurrentQuery] = useState('');
   const [activeResult, setActiveResult] = useState<RouteResult | null>(null);
@@ -213,7 +214,7 @@ export function App() {
         );
 
         // Fetch the route decision from the backend.
-        const result = await routeQuery(query);
+        const result = await routeQuery(query, useExperts);
         setActiveResult(result);
 
         await sleep(220);
@@ -241,7 +242,16 @@ export function App() {
         setNodes((nds) =>
           nds.map((n) =>
             n.id === 'router'
-              ? { ...n, data: { ...n.data, status: 'running', isActivePath: true, result } }
+              ? {
+                  ...n,
+                  data: {
+                    ...n.data,
+                    subtitle: `${result.expert} expert · ${result.gateStage || 'tier-only'} routing`,
+                    status: 'running',
+                    isActivePath: true,
+                    result,
+                  },
+                }
               : n
           )
         );
@@ -290,6 +300,7 @@ export function App() {
                   status: 'running',
                   isActivePath: true,
                   isDimmed: false,
+                  subtitle: result.model,
                   result,
                 },
               };
@@ -378,7 +389,7 @@ export function App() {
         setIsRunning(false);
       }
     },
-    [isRunning, setNodes, setEdges]
+    [isRunning, setNodes, setEdges, useExperts]
   );
 
   // Handle clicking a node to inspect details in SidePanel
@@ -420,6 +431,12 @@ export function App() {
               isDimmed: isOtherModel,
               result: item.result,
               currentQuery: item.query,
+              subtitle:
+                n.id === 'router'
+                  ? `${item.result.expert} expert · ${item.result.gateStage || 'tier-only'} routing`
+                  : n.id === targetModelId
+                    ? item.result.model
+                    : n.data.subtitle,
             },
           };
         })
@@ -465,6 +482,8 @@ export function App() {
         isRunning={isRunning}
         theme={theme}
         onToggleTheme={toggleTheme}
+        useExperts={useExperts}
+        onToggleExperts={() => setUseExperts((enabled) => !enabled)}
       />
       {executionError && (
         <div

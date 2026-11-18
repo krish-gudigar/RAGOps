@@ -48,56 +48,15 @@ npm run build
 
 ## Connecting to the Real Backend API
 
-The project isolates all network communication inside [`src/api.ts`](./src/api.ts).
+The frontend sends requests to the FastAPI backend at
+`http://127.0.0.1:8000`. Start that backend before running prompts. If it cannot
+be reached, the app displays a connection error rather than substituting a
+simulated answer.
 
-To connect to your running RouteWise FastAPI backend (by default on `http://127.0.0.1:8000`), update `routeQuery` in [`src/api.ts`](./src/api.ts):
-
-The client waits for the backend response without a short browser-side timeout, since local Ollama models can take several seconds or longer to respond. It uses the simulated response only if the backend cannot be reached; backend HTTP errors are shown rather than replaced with simulated output.
-
-```typescript
-export async function routeQuery(query: string): Promise<RouteResult> {
-  const response = await fetch('http://127.0.0.1:8000/api/execute', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      task: query,
-      strategy: 'dynamic',
-      enable_validation: true,
-      enable_escalation: true,
-      max_escalations: 2,
-    }),
-  });
-
-  if (!response.ok) {
-    throw new Error(`API error: ${response.statusText}`);
-  }
-
-  const data = await response.json();
-  const res = data.result;
-  const analysis = res.analysis;
-
-  return {
-    difficulty: Math.round((analysis.total_score / 10) * 100),
-    tier: res.final_tier === 'strong' ? 'large' : res.final_tier,
-    model: res.attempts[res.attempts.length - 1].model,
-    reason: res.decision.reason,
-    latencyMs: res.total_latency_ms,
-    cost: res.total_estimated_cost,
-    tokenCount: {
-      input: analysis.estimated_input_tokens,
-      output: Math.round(res.final_response.length / 4),
-    },
-    responseText: res.final_response,
-    scores: {
-      complexity: analysis.complexity_score,
-      reasoning: analysis.reasoning_score,
-      context: analysis.context_score,
-      constraints: analysis.constraints_score,
-      reliability: analysis.reliability_score,
-    },
-  };
-}
-```
+Use the **Expert Pool** toggle in the top bar to opt in per request. The side
+inspector then shows the selected expert, gate stage, explanation, expert
+similarity scores, embedding latency, tier, and model. The tier-only behavior
+remains available when the toggle is off.
 
 ---
 

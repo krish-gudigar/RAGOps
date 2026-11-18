@@ -1,9 +1,9 @@
 # RouteWise
 
 RouteWise is an educational, explainable LLM router with a FastAPI backend and
-a Streamlit UI. It analyzes task difficulty and routes to a small, medium, or
-strong model tier. Optional expert-pool routing independently chooses a
-general, coding, or reasoning expert.
+a React/TypeScript frontend. It analyzes task difficulty and routes to a small,
+medium, or strong model tier. Optional expert-pool routing independently
+chooses a general, coding, or reasoning expert.
 
 The default provider is a local Ollama instance when `PROVIDER_MODE=ollama` is
 set in `.env`; otherwise the offline mock provider is used.
@@ -18,10 +18,12 @@ python -m uvicorn app.main:app --app-dir backend --reload --host 127.0.0.1 --por
 ```
 
 ```powershell
-streamlit run frontend/streamlit_app.py
+cd frontend
+npm install
+npm run dev
 ```
 
-The Streamlit app opens in a browser. The FastAPI docs are at
+The React app opens at `http://localhost:5173`. The FastAPI docs are at
 `http://127.0.0.1:8000/docs`. Python packages used by the backend, including
 NumPy for embeddings, must be available in the active Python environment.
 
@@ -30,6 +32,13 @@ NumPy for embeddings, must be available in the active Python environment.
 Expert routing is opt-in (`use_experts: false` by default), so leaving it off
 preserves the existing tier-only routing behavior. When enabled, RouteWise
 makes two independent decisions:
+
+In the React app, use the **Expert Pool** toggle in the top bar. The frontend
+sends this as a per-request override, so it does not change the backend's
+global setting. The side panel shows the chosen expert, gate stage, explanation,
+similarity scores, and embedding latency. The frontend requires the backend;
+when it cannot connect, it reports an error instead of showing a simulated
+answer.
 
 1. **Expert:** The ordered task-type regexes short-circuit to coding or
    reasoning when a specific type matches. General-question and unknown
