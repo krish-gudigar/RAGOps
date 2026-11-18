@@ -134,6 +134,24 @@ def test_embeddings_are_reused_and_recomputed_for_changed_text_or_model(tmp_path
     assert len(changed_model_embedder.calls[0][0]) == 3
 
 
+def test_same_gate_recomputes_when_model_or_example_bank_changes(tmp_path):
+    examples = tmp_path / "examples.yaml"
+    write_examples(examples)
+    settings = Settings()
+    embedder = CountingEmbedder()
+    gate = ExpertGate(settings, embedder, examples, tmp_path / "cache.json")
+    gate.decide("some unmatched prompt")
+    assert len(embedder.calls) == 2
+
+    write_examples(examples, coding="my program stops after I sign in")
+    gate.decide("another unmatched prompt")
+    assert len(embedder.calls[-2][0]) == 1
+
+    settings.embedding_model = "changed-model"
+    gate.decide("one more unmatched prompt")
+    assert len(embedder.calls[-2][0]) == 3
+
+
 def test_ollama_embedder_uses_embed_endpoint_and_response_dimension():
     seen = {}
 

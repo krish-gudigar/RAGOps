@@ -6,3 +6,5 @@ __pycache__/
 node_modules/
 .pytest_cache/
 data/settings.json
+data/expert_embeddings.json
+data/expert_embeddings.mock.json

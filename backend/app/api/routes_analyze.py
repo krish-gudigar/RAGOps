@@ -10,5 +10,7 @@ router = APIRouter(prefix="/api", tags=["analyze"])
 @router.post("/analyze", response_model=AnalyzeResponse)
 def analyze(request: AnalyzeRequest, state: AppState = Depends(get_state)):
     """Score the task and show which tier would be chosen. No model is called."""
-    analysis, decision = state.orchestrator.analyze_and_route(request.task, request.strategy)
+    analysis, decision = state.orchestrator.analyze_and_route(
+        request.task, request.strategy, request.use_experts
+    )
     return AnalyzeResponse(analysis=analysis, decision=decision)

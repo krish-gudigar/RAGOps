@@ -5,6 +5,7 @@ from app.routing.rule_based import RuleBasedRouter
 
 _ROUTERS = {
     "dynamic": RuleBasedRouter,
+    "expert_pool": RuleBasedRouter,
     "always_small": AlwaysSmallRouter,
     "always_strong": AlwaysStrongRouter,
     "random": RandomRouter,   # for evaluation only, not offered in the UI

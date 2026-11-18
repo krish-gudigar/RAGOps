@@ -45,17 +45,20 @@ class Orchestrator:
         """Analyze and route only. No model is called (used by /api/analyze)."""
         analysis = self.analyzer.analyze(task)
         expert_decision = None
-        if strategy == "dynamic" and (
+        expert_enabled = strategy == "expert_pool" or (
             self.settings.use_experts if use_experts is None else use_experts
-        ):
+        )
+        if strategy in {"dynamic", "expert_pool"} and expert_enabled:
             if self.expert_gate is None:
                 raise RuntimeError("Expert routing is enabled but no expert gate is configured.")
             expert_decision = self.expert_gate.decide(task)
-        router = get_router(strategy)
-        if strategy == "dynamic":
+        if strategy in {"dynamic", "expert_pool"}:
+            router = get_router("dynamic")
             decision = router.route(analysis, self.settings, expert_decision)
+            if strategy == "expert_pool":
+                decision = decision.model_copy(update={"strategy": "expert_pool"})
         else:
-            decision = router.route(analysis, self.settings)
+            decision = get_router(strategy).route(analysis, self.settings)
         return analysis, decision
 
     def execute(self, request: TaskRequest) -> TaskExecutionResult:

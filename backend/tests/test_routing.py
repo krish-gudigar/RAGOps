@@ -180,6 +180,7 @@ def test_simple_task_goes_small_and_hard_task_goes_strong():
 # ---------- factory ----------
 def test_factory_returns_correct_routers():
     assert get_router("dynamic").name == "dynamic"
+    assert get_router("expert_pool").name == "dynamic"
     assert get_router("always_small").name == "always_small"
     assert get_router("always_strong").name == "always_strong"
 

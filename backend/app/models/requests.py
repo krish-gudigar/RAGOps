@@ -1,7 +1,7 @@
 from typing import Literal
 from pydantic import BaseModel, Field
 
-Strategy = Literal["dynamic", "always_small", "always_strong"]
+Strategy = Literal["dynamic", "always_small", "always_strong", "expert_pool"]
 
 
 class TaskRequest(BaseModel):

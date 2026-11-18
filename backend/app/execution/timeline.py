@@ -4,6 +4,7 @@ from app.models.domain import TaskExecutionResult
 
 STRATEGY_LABELS = {
     "dynamic": "Dynamic routing",
+    "expert_pool": "Expert-pool routing",
     "always_small": "Always-small strategy",
     "always_strong": "Always-strong strategy",
 }

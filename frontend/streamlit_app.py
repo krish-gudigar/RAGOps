@@ -12,7 +12,9 @@ st.set_page_config(page_title="RouteWise", layout="wide")
 # ---------- sidebar ----------
 st.sidebar.title("RouteWise")
 api = st.sidebar.text_input("API address", "http://127.0.0.1:8000").rstrip("/")
-strategy = st.sidebar.selectbox("Strategy", ["dynamic", "always_small", "always_strong"])
+strategy = st.sidebar.selectbox(
+    "Strategy", ["dynamic", "expert_pool", "always_small", "always_strong"]
+)
 validate = st.sidebar.checkbox("Validate answers", value=True)
 escalate = st.sidebar.checkbox("Escalate on failure", value=True)
 max_esc = st.sidebar.slider("Max escalations", 0, 2, 2)
@@ -30,6 +32,8 @@ def fetch_config(api_url: str):
 
 config = fetch_config(api)
 models = config["models"] if config else {}
+default_experts = bool(config and config["settings"].get("use_experts", False))
+use_experts = st.sidebar.checkbox("Use experts for dynamic routing", value=default_experts)
 
 st.sidebar.subheader("Available models")
 if models:
@@ -68,8 +72,30 @@ def show_analysis(analysis: dict, decision: dict):
     st.subheader("Why this model?")
     st.info(decision["reason"])
     chosen_tier = decision["selected_tier"]
-    chosen_model = models.get(chosen_tier, "unknown model")
-    st.success(f"Selected: **{chosen_tier}** tier, using model `{chosen_model}`")
+    chosen_model = decision.get("model_name") or decision.get(
+        "selected_model", models.get(chosen_tier, "unknown model")
+    )
+    st.success(
+        f"Selected: **{decision.get('expert', 'general')}** expert, "
+        f"**{chosen_tier}** tier, model `{chosen_model}`"
+    )
+    gate_stage = decision.get("gate_stage")
+    if gate_stage:
+        st.caption(
+            f"Expert gate: {gate_stage} | "
+            f"{decision.get('gate_reason', '')} | "
+            f"Embedding overhead: {decision.get('embedding_latency_ms', 0)} ms"
+        )
+    if decision.get("fallback_reason"):
+        st.warning(decision["fallback_reason"])
+    if decision.get("expert_scores"):
+        st.write("Expert similarity scores")
+        st.dataframe(
+            [{"expert": expert, "score": round(score, 3)}
+             for expert, score in decision["expert_scores"].items()],
+            hide_index=True,
+            use_container_width=True,
+        )
     if models:
         st.caption("Available: " + " | ".join(
             f"{t}: {models.get(t, '?')}" for t in ("small", "medium", "strong")))
@@ -132,13 +158,18 @@ with tab_run:
     if (preview or run) and not task.strip():
         st.warning("Type a task first.")
     elif preview:
-        body = call("POST", "/api/analyze", {"task": task, "strategy": strategy})
+        body = call("POST", "/api/analyze", {
+            "task": task,
+            "strategy": strategy,
+            "use_experts": True if strategy == "expert_pool" else use_experts,
+        })
         if body:
             show_analysis(body["analysis"], body["decision"])
     elif run:
         with st.spinner("Running... the first call to a local model can be slow."):
             body = call("POST", "/api/execute", {
                 "task": task, "strategy": strategy,
+                "use_experts": True if strategy == "expert_pool" else use_experts,
                 "enable_validation": validate,
                 "enable_escalation": escalate,
                 "max_escalations": max_esc,
@@ -147,7 +178,7 @@ with tab_run:
             show_execution(body)
 
 with tab_compare:
-    st.write("Runs ONE task through always-small, always-strong and dynamic routing. "
+    st.write("Runs ONE task through always-small, always-strong, dynamic, and expert-pool routing. "
              "Not saved to history. With a local model this can take minutes.")
     ctask = st.text_area("Task to compare", height=120, key="cmp_task")
     if st.button("Compare strategies", type="primary"):

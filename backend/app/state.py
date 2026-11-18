@@ -12,6 +12,8 @@ from app.routing.expert_gate import ExpertGate, MockEmbedder, OllamaEmbedder
 from app.settings_store import SettingsStore
 from app.storage.repository import HistoryRepository
 
+_PROJECT_ROOT = Path(__file__).resolve().parents[2]
+
 
 @dataclass
 class AppState:
@@ -37,9 +39,13 @@ def build_state(
         raw_provider = raw_provider.inner
     if isinstance(raw_provider, OllamaProvider):
         embedder = OllamaEmbedder(base_url=raw_provider.base_url)
+        embedding_cache_path = _PROJECT_ROOT / "data" / "expert_embeddings.json"
     else:
         embedder = MockEmbedder()
-    expert_gate = ExpertGate(settings, embedder)
+        embedding_cache_path = _PROJECT_ROOT / "data" / "expert_embeddings.mock.json"
+    expert_gate = ExpertGate(settings, embedder, cache_path=embedding_cache_path)
+    if settings.use_experts:
+        expert_gate.prepare()
     return AppState(
         settings=settings,
         store=store,

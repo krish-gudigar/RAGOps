@@ -18,6 +18,7 @@ from app.models.requests import Strategy
 class AnalyzeRequest(BaseModel):
     task: str = Field(min_length=1)
     strategy: Strategy = "dynamic"
+    use_experts: bool | None = None
 
 
 class AnalyzeResponse(BaseModel):

@@ -52,7 +52,7 @@ def test_health(client):
 def test_config_describes_the_setup(client):
     body = client.get("/api/config").json()
     assert body["provider_mode"] == "mock"
-    assert body["strategies"] == ["dynamic", "always_small", "always_strong"]
+    assert body["strategies"] == ["dynamic", "always_small", "always_strong", "expert_pool"]
     assert body["tiers"] == ["small", "medium", "strong"]
     assert set(body["models"]) == {"small", "medium", "strong"}
     assert body["settings"]["thresholds"] == {
@@ -92,8 +92,25 @@ def test_expert_gate_settings_are_exposed_and_persisted(client, tmp_path):
 
 
 def test_execute_accepts_per_request_expert_override(client):
-    response = client.post("/api/execute", json={"task": SIMPLE, "use_experts": True})
+    response = client.post("/api/execute", json={
+        "task": "Write a Python function to sort a list.",
+        "use_experts": True,
+    })
+    body = response.json()
     assert response.status_code == 200
+    assert body["result"]["decision"]["expert"] == "coding"
+    assert body["result"]["gate_stage"] == "regex"
+
+
+def test_execute_can_disable_globally_enabled_experts_per_request(tmp_path):
+    client, state = make_client(tmp_path)
+    state.settings.use_experts = True
+    body = client.post("/api/execute", json={
+        "task": "Write a Python function to sort a list.",
+        "use_experts": False,
+    }).json()
+    assert body["result"]["decision"]["gate_stage"] is None
+    assert body["result"]["decision"]["expert"] == "general"
 
 
 def test_docs_page_is_available(client):
@@ -113,6 +130,16 @@ def test_analyze_returns_scores_and_decision_without_calling_a_model(tmp_path):
 def test_analyze_with_baseline_strategy(client):
     body = client.post("/api/analyze", json={"task": SIMPLE, "strategy": "always_strong"}).json()
     assert body["decision"]["selected_tier"] == "strong"
+
+
+def test_analyze_can_override_expert_setting(client):
+    body = client.post("/api/analyze", json={
+        "task": "Write a Python function to sort a list.",
+        "use_experts": True,
+    }).json()
+    assert body["decision"]["expert"] == "coding"
+    assert body["decision"]["gate_stage"] == "regex"
+    assert body["decision"]["model_name"].startswith("qwen2.5-coder:")
 
 
 @pytest.mark.parametrize("payload", [
@@ -170,7 +197,7 @@ def test_provider_failure_gives_a_clear_502(tmp_path):
 # ---------- compare ----------
 def test_compare_runs_all_three_strategies(client):
     body = client.post("/api/compare", json={"task": HARD}).json()
-    assert list(body["results"]) == ["always_small", "always_strong", "dynamic"]
+    assert list(body["results"]) == ["always_small", "always_strong", "dynamic", "expert_pool"]
     rows = {row["strategy"]: row for row in body["summary"]}
 
     assert rows["always_small"]["final_tier"] == "small"
@@ -178,6 +205,7 @@ def test_compare_runs_all_three_strategies(client):
     assert rows["always_small"]["escalations"] == 0
     assert rows["always_strong"]["final_tier"] == "strong" and rows["always_strong"]["success"]
     assert rows["dynamic"]["final_tier"] == "strong" and rows["dynamic"]["success"]
+    assert rows["expert_pool"]["final_tier"] == "strong"
     assert rows["always_strong"]["estimated_cost"] > rows["always_small"]["estimated_cost"]
     assert all(row["validated"] for row in rows.values())
     assert any("ONE task" in note for note in body["notes"])

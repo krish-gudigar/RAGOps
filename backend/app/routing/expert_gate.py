@@ -113,6 +113,15 @@ class ExpertGate:
         self.stage_counts: Counter[str] = Counter()
         self._cache_lock = threading.Lock()
         self._embedded_examples: list[tuple[str, Expert, list[float]]] | None = None
+        self._embedded_model: str | None = None
+        self._example_hash: str | None = None
+
+    def prepare(self) -> None:
+        """Precompute the example vectors when expert routing is enabled at startup."""
+        try:
+            self._load_embedded_examples()
+        except EmbeddingError as error:
+            log.warning("Expert example embeddings unavailable at startup: %s", error)
 
     def decide(self, task: str) -> ExpertDecision:
         started = time.perf_counter()
@@ -197,7 +206,8 @@ class ExpertGate:
         else:
             reason = (
                 f"regex found no specific match; closest example '{best_example[0]}' "
-                f"({best_expert.value}, similarity {best_score:.2f}, margin {margin:.2f}); "
+                f"({best_expert.value}, similarity {best_example[1]:.2f}; "
+                f"expert score {best_score:.2f}, margin {margin:.2f}); "
                 f"scores: {score_text}"
             )
             selected, stage = best_expert, "embedding"
@@ -213,10 +223,17 @@ class ExpertGate:
 
     def _load_embedded_examples(self) -> list[tuple[str, Expert, list[float]]]:
         with self._cache_lock:
-            if self._embedded_examples is not None:
+            examples = self._load_examples()
+            bank_hash = hashlib.sha256(
+                "\n".join(f"{expert.value}:{text}" for expert, text in examples).encode("utf-8")
+            ).hexdigest()
+            if (
+                self._embedded_examples is not None
+                and self._embedded_model == self.settings.embedding_model
+                and self._example_hash == bank_hash
+            ):
                 return self._embedded_examples
 
-            examples = self._load_examples()
             cache = self._read_cache()
             result: list[tuple[str, Expert, list[float]]] = []
             missing_texts: list[str] = []
@@ -251,6 +268,8 @@ class ExpertGate:
                 self._write_cache(cache)
 
             self._embedded_examples = result
+            self._embedded_model = self.settings.embedding_model
+            self._example_hash = bank_hash
             return result
 
     def _load_examples(self) -> list[tuple[Expert, str]]:

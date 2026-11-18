@@ -10,7 +10,7 @@ from app.state import AppState
 
 router = APIRouter(prefix="/api", tags=["execute"])
 
-COMPARE_STRATEGIES = ("always_small", "always_strong", "dynamic")
+COMPARE_STRATEGIES = ("always_small", "always_strong", "dynamic", "expert_pool")
 
 
 def _wrap(result: TaskExecutionResult) -> ExecuteResponse:
@@ -29,13 +29,14 @@ def execute(request: TaskRequest, state: AppState = Depends(get_state)):
 
 @router.post("/compare", response_model=CompareResponse)
 def compare(request: CompareRequest, state: AppState = Depends(get_state)):
-    """Run ONE task with always-small, always-strong and dynamic routing. Not saved to history."""
+    """Compare baseline, dynamic, and expert-pool routing. Not saved to history."""
     results: dict[str, ExecuteResponse] = {}
     for strategy in COMPARE_STRATEGIES:
-        is_baseline = strategy != "dynamic"
+        is_baseline = strategy in {"always_small", "always_strong"}
         task_request = TaskRequest(
             task=request.task,
             strategy=strategy,
+            use_experts=True if strategy == "expert_pool" else None,
             enable_validation=request.enable_validation,
             enable_escalation=False if is_baseline else request.enable_escalation,
             max_escalations=request.max_escalations,
